@@ -4,7 +4,7 @@ export function useLoadAllHistory(key: string, loadPage: () => Promise<boolean>)
   const active = useRef<AbortController | null>(null);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [error, setError] = useState<{ key: string; message: string } | null>(null);
-  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Cancel history requests on navigation or unmount before another page is requested.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- stops paging on thread change or unmount
   useEffect(() => {
     return () => {
       active.current?.abort();
