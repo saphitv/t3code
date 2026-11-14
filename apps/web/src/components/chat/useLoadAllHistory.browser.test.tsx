@@ -35,6 +35,7 @@ it("loads pages sequentially, ignores duplicate starts, and stops on Stop or nav
   expect(loadPage).toHaveBeenCalledTimes(2);
   await screen.getByRole("button", { name: "Stop" }).click();
   await act(() => resolvers[1]!(true));
+  expect(loadPage).toHaveBeenCalledTimes(2);
   await expect.element(screen.getByRole("status")).toHaveTextContent("Idle");
   await screen.getByRole("button", { name: "Load all" }).click();
   expect(loadPage).toHaveBeenCalledTimes(3);
