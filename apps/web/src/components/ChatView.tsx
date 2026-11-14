@@ -1,3 +1,4 @@
+import { useLoadAllHistory } from "./chat/useLoadAllHistory";
 import { ChildThreadApprovals } from "./chat/ChildThreadApprovals";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
@@ -553,15 +554,32 @@ export default function ChatView(props: ChatViewProps) {
   );
   const serverVisibleTurnItems = useQuietThreadVisibleTurnItems(routeThreadDetailRef);
   const serverThreadHistory = useThreadHistory(routeThreadDetailRef);
+  const allHistory = useLoadAllHistory(routeThreadKey, async () => {
+    if (routeThreadDetailRef === null) return false;
+    const result = await loadEarlierThreadHistory({
+      environmentId: routeThreadDetailRef.environmentId,
+      input: { threadId: routeThreadDetailRef.threadId },
+    });
+    if (result._tag === "Failure") throw new Error("History request failed");
+    return result.value._tag === "loaded";
+  });
   const threadHistoryControls = (() => {
-    if (routeThreadDetailRef === null || !shouldShowLoadEarlierControl(serverThreadHistory)) {
+    if (
+      routeThreadDetailRef === null ||
+      (!shouldShowLoadEarlierControl(serverThreadHistory) && allHistory.error === null)
+    ) {
       return undefined;
     }
     return {
       hasMoreHistory: serverThreadHistory.hasMoreHistory,
-      loading: serverThreadHistory.loading,
-      error: serverThreadHistory.error,
+      loading: serverThreadHistory.loading || allHistory.loadingAll,
+      loadingAll: allHistory.loadingAll,
+      onLoadAll: allHistory.loadAll,
+      onStopLoadingAll: allHistory.stop,
+      error: serverThreadHistory.error ?? allHistory.error,
       onLoadEarlier: (throughEntryId) => {
+        if (allHistory.loadingAll) return;
+        allHistory.clearError();
         void loadEarlierThreadHistory({
           environmentId: routeThreadDetailRef.environmentId,
           input: {
@@ -3517,7 +3535,7 @@ export default function ChatView(props: ChatViewProps) {
                   onAnchorReady={onTimelineAnchorReadyStable}
                   onAnchorSizeChanged={onTimelineAnchorSizeChangedStable}
                   contentInsetEndAdjustment={composerTimelineInset}
-                  liveFollowEnabled={timelineLiveFollowEnabled}
+                  liveFollowEnabled={timelineLiveFollowEnabled && !allHistory.loadingAll}
                   onIsAtEndChange={onIsAtEndChangeStable}
                   onViewportAttach={attachTimelineViewport}
                   onFooterGrow={onTimelineFooterGrowStable}
